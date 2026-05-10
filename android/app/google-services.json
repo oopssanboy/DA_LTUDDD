@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1037773373862",
+    "project_id": "movetime-96b22",
+    "storage_bucket": "movetime-96b22.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1037773373862:android:4234115260ae99816dcf67",
+        "android_client_info": {
+          "package_name": "com.example.da_ltuddd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQ89aSXyKsOhg8kJn0tA5H5gyIs0tCKbM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
