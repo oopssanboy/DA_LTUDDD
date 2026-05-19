@@ -1,60 +1,106 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/movie.dart';
+import '../models/media_item.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Thêm phim vào watchlist
-  Future<void> addToWatchlist(String userId, Movie movie) async {
+  // ========== WATCHLIST ==========
+  Future<void> addToWatchlist(String userId, MediaItem item) async {
     await _db
         .collection('users')
         .doc(userId)
         .collection('watchlist')
-        .doc(movie.id.toString())
-        .set({
-      'id': movie.id,
-      'title': movie.title,
-      'posterPath': movie.posterPath,
-      'overview': movie.overview,
-      'voteAverage': movie.voteAverage,
-      'releaseDate': movie.releaseDate,
-      'backdropPath': movie.backdropPath,
-      'popularity': movie.popularity,
-      'genreIds': movie.genreIds,
-      'addedAt': FieldValue.serverTimestamp(),
-    });
+        .doc(item.id.toString())
+        .set(item.toMap()..['addedAt'] = FieldValue.serverTimestamp());
   }
 
-  // Xóa phim khỏi watchlist
-  Future<void> removeFromWatchlist(String userId, int movieId) async {
+  Future<void> removeFromWatchlist(String userId, int mediaId) async {
     await _db
         .collection('users')
         .doc(userId)
         .collection('watchlist')
-        .doc(movieId.toString())
+        .doc(mediaId.toString())
         .delete();
   }
 
-  // Lấy danh sách watchlist
-  Stream<List<Movie>> getWatchlist(String userId) {
+  Stream<List<MediaItem>> getWatchlist(String userId) {
     return _db
         .collection('users')
         .doc(userId)
         .collection('watchlist')
         .orderBy('addedAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-        snapshot.docs.map((doc) => Movie.fromJson(doc.data())).toList());
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = doc.data();
+              return MediaItem(
+                id: data['id'],
+                title: data['title'],
+                overview: data['overview'] ?? '',
+                posterPath: data['posterPath'] ?? '',
+                backdropPath: data['backdropPath'] ?? '',
+                voteAverage: (data['voteAverage'] ?? 0).toDouble(),
+                releaseDate: data['releaseDate'] ?? '',
+                genreIds: List<int>.from(data['genreIds'] ?? []),
+                popularity: (data['popularity'] ?? 0).toDouble(),
+                mediaType: data['mediaType'] ?? 'movie',
+              );
+            }).toList());
   }
 
-  // Kiểm tra xem phim đã có trong watchlist chưa
-  Future<bool> isInWatchlist(String userId, int movieId) async {
+  Future<bool> isInWatchlist(String userId, int mediaId) async {
     final doc = await _db
         .collection('users')
         .doc(userId)
         .collection('watchlist')
-        .doc(movieId.toString())
+        .doc(mediaId.toString())
         .get();
     return doc.exists;
+  }
+
+  // ========== REVIEWS ==========
+  Future<void> submitReview({
+    required String userId,
+    required int mediaId,
+    required String mediaType,
+    required double rating,
+    required String comment,
+  }) async {
+    final docRef = _db.collection('reviews').doc('${mediaId}_$userId');
+    await docRef.set({
+      'userId': userId,
+      'mediaId': mediaId,
+      'mediaType': mediaType,
+      'rating': rating,
+      'comment': comment,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<Map<String, dynamic>?> getUserReview(String userId, int mediaId) async {
+    final doc = await _db.collection('reviews').doc('${mediaId}_$userId').get();
+    if (doc.exists) return doc.data();
+    return null;
+  }
+
+  Stream<List<Map<String, dynamic>>> getReviews(int mediaId) {
+    return _db
+        .collection('reviews')
+        .where('mediaId', isEqualTo: mediaId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
+  Future<double> getAverageUserRating(int mediaId) async {
+    final snapshot = await _db
+        .collection('reviews')
+        .where('mediaId', isEqualTo: mediaId)
+        .get();
+    if (snapshot.docs.isEmpty) return 0.0;
+    double total = 0;
+    for (var doc in snapshot.docs) {
+      total += (doc.data()['rating'] as num?)?.toDouble() ?? 0;
+    }
+    return total / snapshot.docs.length;
   }
 }

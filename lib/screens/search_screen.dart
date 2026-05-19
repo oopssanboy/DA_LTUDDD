@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/movie_provider.dart';
-import '../widgets/movie_card.dart';
+import '../providers/media_provider.dart';
+import '../widgets/media_card.dart';
 import 'detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -14,48 +14,32 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final movieProv = Provider.of<MovieProvider>(context);
+    final prov = Provider.of<MediaProvider>(context);
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: TextField(
           controller: _searchCtrl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Tìm kiếm phim...',
-            hintStyle: TextStyle(color: Colors.grey),
-            border: InputBorder.none,
-          ),
-          onSubmitted: (value) {
-            if (value.isNotEmpty) {
-              movieProv.searchMovies(value);
-            }
-          },
+          autofocus: true,
+          style: const TextStyle(color: Colors.black),
+          decoration: const InputDecoration(hintText: 'Tìm kiếm phim hoặc TV show...', hintStyle: TextStyle(color: Colors.grey), border: InputBorder.none),
+          onSubmitted: (value) { if (value.isNotEmpty) prov.searchMulti(value); },
         ),
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: movieProv.loading
+      body: prov.loading
           ? const Center(child: CircularProgressIndicator())
-          : movieProv.error != null
-              ? Center(child: Text('Lỗi: ${movieProv.error}', style: const TextStyle(color: Colors.white)))
+          : prov.error != null
+              ? Center(child: Text('Lỗi: ${prov.error}'))
               : GridView.builder(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.7,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                    crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 12, mainAxisSpacing: 12,
                   ),
-                  itemCount: movieProv.searchResults.length,
+                  itemCount: prov.searchResults.length,
                   itemBuilder: (context, index) {
-                    final movie = movieProv.searchResults[index];
-                    return MovieCard(
-                      movie: movie,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => DetailScreen(movieId: movie.id)),
-                      ),
+                    final item = prov.searchResults[index];
+                    return MediaCard(
+                      item: item,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(id: item.id, mediaType: item.mediaType))),
                     );
                   },
                 ),
