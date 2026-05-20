@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // THÊM THƯ VIỆN NÀY
 import '../models/media_item.dart';
 import '../services/tmdb_api_service.dart';
 import '../services/firestore_service.dart';
@@ -29,6 +30,15 @@ class MediaProvider with ChangeNotifier {
   int _tmdbVoteCount = 0;
   double _userRating = 0;
   int _userReviewCount = 0;
+
+  // ==========================================
+  // THÊM CONSTRUCTOR ĐỂ TỰ ĐỘNG BẮT USER ID
+  // ==========================================
+  MediaProvider() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      setUserId(user?.uid);
+    });
+  }
 
   // Getters
   List<MediaItem> get popularMovies => _popularMovies;
@@ -156,6 +166,6 @@ class MediaProvider with ChangeNotifier {
     } else {
       await _firestoreService.addToWatchlist(_userId!, item);
     }
-    // Stream tự cập nhật
+    // Stream tự cập nhật UI do có hàm notifyListeners() trong _listenToWatchlist
   }
 }
