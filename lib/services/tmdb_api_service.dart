@@ -6,7 +6,6 @@ class TMDBApiService {
   static const String _baseUrl = 'https://api.themoviedb.org/3';
   static const String _apiKey = '84441b9e8c4183d8b3bcfe738f14b53b';
 
-  // --- Danh sách phim / TV phổ biến ---
   Future<List<MediaItem>> getPopularMovies({int page = 1}) async {
     return _fetchList('movie/popular', 'movie', page: page);
   }
@@ -14,7 +13,6 @@ class TMDBApiService {
     return _fetchList('tv/popular', 'tv', page: page);
   }
 
-  // --- Khám phá với bộ lọc ---
   Future<List<MediaItem>> discoverMovies({
     int? withGenres,
     int page = 1,
@@ -33,7 +31,6 @@ class TMDBApiService {
     return _fetchList('discover/tv', 'tv', queryParams: query);
   }
 
-  // --- Tìm kiếm ---
   Future<List<MediaItem>> searchMulti(String query, {int page = 1}) async {
     final response = await http.get(
       Uri.parse('$_baseUrl/search/multi?api_key=$_apiKey&language=vi-VN&query=$query&page=$page'),
@@ -50,7 +47,6 @@ class TMDBApiService {
     }
   }
 
-  // --- Credits (cast) ---
   Future<List<Map<String, dynamic>>> getCredits(int id, String mediaType) async {
     final endpoint = mediaType == 'movie' ? 'movie/$id/credits' : 'tv/$id/credits';
     final response = await http.get(
@@ -68,7 +64,6 @@ class TMDBApiService {
     return [];
   }
 
-  // --- Chi tiết phim ---
   Future<Map<String, dynamic>> getMovieDetails(int movieId) async {
     final detailRes = await http.get(
       Uri.parse('$_baseUrl/movie/$movieId?api_key=$_apiKey&language=vi-VN'),
@@ -97,7 +92,6 @@ class TMDBApiService {
     throw Exception('Failed to load movie details');
   }
 
-  // --- Chi tiết TV ---
   Future<Map<String, dynamic>> getTVDetails(int tvId) async {
     final detailRes = await http.get(
       Uri.parse('$_baseUrl/tv/$tvId?api_key=$_apiKey&language=vi-VN'),
@@ -127,7 +121,6 @@ class TMDBApiService {
     throw Exception('Failed to load TV details');
   }
 
-  // --- Genres ---
   Future<Map<int, String>> getMovieGenres() async {
     final response = await http.get(
       Uri.parse('$_baseUrl/genre/movie/list?api_key=$_apiKey&language=vi-VN'),
@@ -154,7 +147,6 @@ class TMDBApiService {
     return {};
   }
 
-  // --- Helper ---
   Future<List<MediaItem>> _fetchList(
     String endpoint,
     String mediaType, {

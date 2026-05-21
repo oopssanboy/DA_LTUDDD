@@ -29,11 +29,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Logo tùy chọn (Giống bên Login)
-                  Image.asset('assets/logo.png', height: 80),
+                  const Text('MoveTime', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 241, 109, 21), letterSpacing: 2)),
                   const SizedBox(height: 30),
-                  
-                  // Bọc toàn bộ Form bằng Kính mờ
                   GlassContainer(
                     borderRadius: 30,
                     padding: const EdgeInsets.all(24),
@@ -90,7 +87,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             height: 50,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.neonPink, // Đồng bộ màu nút với Đăng nhập
+                                backgroundColor: AppTheme.neonPink, 
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
                               ),
                               onPressed: () async {
@@ -99,7 +96,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                   if (success) {
                                     Navigator.pop(context);
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đăng ký thất bại', style: TextStyle(color: Colors.white))));
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đăng ký thành công', style: TextStyle(color: Colors.white))));
+                                    Navigator.pop(context);
                                   }
                                 }
                               },
@@ -111,7 +109,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Text điều hướng
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -131,7 +128,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // Hàm helper để render UI của các ô Input (Giống bên Login)
   InputDecoration _inputDecoration(String label, String hint, IconData icon) {
     return InputDecoration(
       labelText: label,

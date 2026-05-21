@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/media_provider.dart';
 import '../models/media_item.dart';
+import '../models/review_model.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'trailer_screen.dart';
@@ -23,7 +24,7 @@ class _DetailScreenState extends State<DetailScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _reviewCtrl = TextEditingController();
   double _userRatingValue = 5.0;
-  Map<String, dynamic>? _existingReview;
+  ReviewModel? _existingReview; 
 
   @override
   void initState() {
@@ -45,13 +46,14 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _loadUserReview() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    
     final review = await _firestoreService.getUserReview(user.uid, widget.id);
     if (mounted) {
       setState(() {
         _existingReview = review;
         if (review != null) {
-          _userRatingValue = (review['rating'] as num).toDouble();
-          _reviewCtrl.text = review['comment'] ?? '';
+          _userRatingValue = review.rating;
+          _reviewCtrl.text = review.comment;
         }
       });
     }
@@ -62,8 +64,14 @@ class _DetailScreenState extends State<DetailScreen> {
     if (user == null) return;
     
     var userProfile = await _firestoreService.getUserProfile(user.uid);
-    String userName = userProfile?['displayName'] ?? user.email?.split('@')[0] ?? 'Ẩn danh';
-    String userAvatar = userProfile?['avatarUrl'] ?? 'https://via.placeholder.com/150';
+    String userName = (userProfile != null && userProfile.displayName.isNotEmpty) 
+        ? userProfile.displayName 
+        : (user.email?.split('@')[0] ?? 'Ẩn danh');
+    
+    String userAvatar = userProfile?.avatarUrl ?? '';
+    if (userAvatar.isEmpty || !userAvatar.startsWith('http')) {
+      userAvatar = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random';
+    }
 
     await _firestoreService.submitReview(
       userId: user.uid,
@@ -80,6 +88,38 @@ class _DetailScreenState extends State<DetailScreen> {
     final prov = Provider.of<MediaProvider>(context, listen: false);
     prov.fetchDetail(widget.id, widget.mediaType);
     if (Navigator.canPop(context)) Navigator.pop(context);
+  }
+
+  // KHÔI PHỤC HÀM XÓA CỦA BẠN
+  Future<void> _deleteReview() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.bgColor,
+        title: const Text('Xóa đánh giá?', style: TextStyle(color: Colors.white)),
+        content: const Text('Bạn có chắc chắn muốn xóa đánh giá này không?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy', style: TextStyle(color: Colors.white54))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Xóa', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
+        ],
+      )
+    ) ?? false;
+
+    if (confirm) {
+      await _firestoreService.deleteReview(user.uid, widget.id);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa đánh giá!')));
+      setState(() {
+        _existingReview = null;
+        _reviewCtrl.clear();
+        _userRatingValue = 5.0;
+      });
+      _loadUserReview();
+      final prov = Provider.of<MediaProvider>(context, listen: false);
+      prov.fetchDetail(widget.id, widget.mediaType);
+    }
   }
 
   void _showReviewModal() {
@@ -373,103 +413,171 @@ class _DetailScreenState extends State<DetailScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Đánh giá cộng đồng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.edit, size: 16, color: Colors.white),
-                                    label: Text(_existingReview != null ? "Sửa đánh giá" : "Viết đánh giá", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.neonPink,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                    ),
-                                    onPressed: _showReviewModal,
+                                  Row(
+                                    children: [
+                                      // NÚT XÓA BÌNH LUẬN ĐÃ ĐƯỢC KHÔI PHỤC
+                                      if (_existingReview != null)
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                                          tooltip: "Xóa đánh giá",
+                                          onPressed: _deleteReview,
+                                        ),
+                                      ElevatedButton.icon(
+                                        icon: Icon(_existingReview != null ? Icons.edit : Icons.add_comment, size: 16, color: Colors.white),
+                                        label: Text(_existingReview != null ? "Sửa" : "Viết", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppTheme.neonPink,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        ),
+                                        onPressed: _showReviewModal,
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 16),
                             
-                            // ================= BẢN SỬA LỖI STREAM BUILDER =================
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: StreamBuilder<List<Map<String, dynamic>>>(
+                              child: StreamBuilder<List<ReviewModel>>(
                                 stream: _firestoreService.getReviews(widget.id),
                                 builder: (context, snapshot) {
-                                  // 1. Kiểm tra có lỗi truy vấn (Ví dụ: Thiếu Index Firebase)
-                                  if (snapshot.hasError) {
-                                    debugPrint("LỖI FIRESTORE REVIEWS: ${snapshot.error}"); // In ra console để dev dễ nhìn
-                                    return Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                                      child: const Text('Lỗi tải đánh giá. Vui lòng kiểm tra Index trên Firebase (xem Log Console).', style: TextStyle(color: Colors.redAccent)),
-                                    );
-                                  }
-
-                                  // 2. Hiển thị Loading mượt mà khi đang đợi dữ liệu lần đầu
                                   if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 20),
-                                      child: Center(child: CircularProgressIndicator(color: AppTheme.neonBlue)),
-                                    );
+                                    return const Center(child: CircularProgressIndicator(color: AppTheme.neonBlue));
                                   }
-
-                                  // 3. Xử lý trường hợp mảng rỗng
                                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                    return const Padding(
-                                      padding: EdgeInsets.only(top: 8.0),
-                                      child: Text('Chưa có đánh giá nào. Hãy là người đầu tiên!', style: TextStyle(color: Colors.white54)),
-                                    );
+                                    return const Text('Chưa có đánh giá nào. Hãy là người đầu tiên!', style: TextStyle(color: Colors.white54));
                                   }
 
-                                  // 4. Render danh sách
                                   final reviews = snapshot.data!;
-                                  return Column(
-                                    children: reviews.map((review) {
-                                      // Thêm fallback an toàn để TƯƠNG THÍCH VỚI DỮ LIỆU CŨ trong DB của bạn
-                                      String displayAvatar = review['userAvatar'] ?? 'https://via.placeholder.com/150';
-                                      String displayName = review['userName'] ?? review['userId'] ?? 'Người dùng';
-                                      String ratingValue = (review['rating'] ?? 0).toString();
-                                      String commentText = review['comment']?.toString() ?? '';
 
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
-                                        child: GlassContainer(
-                                          color: Colors.white.withOpacity(0.02),
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 20,
-                                                backgroundColor: Colors.white12,
-                                                backgroundImage: NetworkImage(displayAvatar),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  int totalLocalReviews = reviews.length;
+                                  List<int> starCounts = [0, 0, 0, 0, 0]; 
+                                  double sumRating = 0;
+
+                                  for (var r in reviews) {
+                                    double rVal = r.rating;
+                                    sumRating += rVal;
+                                    int starIdx = rVal.round().clamp(1, 5) - 1;
+                                    starCounts[starIdx]++;
+                                  }
+                                  double avgLocalRating = totalLocalReviews > 0 ? (sumRating / totalLocalReviews) : 0.0;
+
+                                  return Column(
+                                    children: [
+                                      GlassContainer(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Row(
+                                          children: [
+                                            Column(
+                                              children: [
+                                                Text(avgLocalRating.toStringAsFixed(1), style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white, height: 1.0)),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: List.generate(5, (index) => Icon(
+                                                    index < avgLocalRating.round() ? Icons.star : Icons.star_border,
+                                                    color: Colors.amber,
+                                                    size: 14,
+                                                  )),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text('$totalLocalReviews bài viết', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                                              ],
+                                            ),
+                                            const SizedBox(width: 24),
+                                            Expanded(
+                                              child: Column(
+                                                children: List.generate(5, (index) {
+                                                  int starLevel = 5 - index; // Đảo chiều hiển thị: 5, 4, 3, 2, 1
+                                                  double percent = totalLocalReviews > 0 ? (starCounts[starLevel - 1] / totalLocalReviews) : 0;
+                                                  return Padding(
+                                                    padding: const EdgeInsets.only(bottom: 6.0),
+                                                    child: Row(
                                                       children: [
-                                                        Expanded(child: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15), overflow: TextOverflow.ellipsis)),
-                                                        Row(
-                                                          children: [
-                                                            const Icon(Icons.star, color: Colors.amber, size: 14),
-                                                            const SizedBox(width: 4),
-                                                            Text(ratingValue, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                                          ],
-                                                        )
+                                                        Text('$starLevel', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                                                        const SizedBox(width: 2),
+                                                        const Icon(Icons.star, color: Colors.white54, size: 10),
+                                                        const SizedBox(width: 8),
+                                                        Expanded(
+                                                          child: ClipRRect(
+                                                            borderRadius: BorderRadius.circular(4),
+                                                            child: LinearProgressIndicator(
+                                                              value: percent,
+                                                              backgroundColor: Colors.white12,
+                                                              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.neonPink),
+                                                              minHeight: 5,
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ],
                                                     ),
-                                                    const SizedBox(height: 6),
-                                                    if (commentText.isNotEmpty)
-                                                      Text(commentText, style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8), height: 1.4)),
-                                                  ],
-                                                ),
-                                              )
-                                            ],
-                                          ),
+                                                  );
+                                                }),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      );
-                                    }).toList(),
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      ...reviews.map((review) {
+                                        String displayName = review.userName.isNotEmpty ? review.userName : 'Người dùng';
+                                        String displayAvatar = review.userAvatar;
+                                        
+                                        if (displayAvatar.isEmpty || !displayAvatar.startsWith('http')) {
+                                          displayAvatar = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(displayName)}&background=random';
+                                        }
+
+                                        return Padding(
+                                          padding: const EdgeInsets.only(bottom: 12),
+                                          child: GlassContainer(
+                                            color: Colors.white.withOpacity(0.02),
+                                            child: Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  width: 40, height: 40,
+                                                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white12),
+                                                  child: ClipOval(
+                                                    child: CachedNetworkImage(
+                                                      imageUrl: displayAvatar, fit: BoxFit.cover,
+                                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                      errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.white70),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          Expanded(child: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15), overflow: TextOverflow.ellipsis)),
+                                                          Row(
+                                                            children: [
+                                                              const Icon(Icons.star, color: Colors.amber, size: 14),
+                                                              const SizedBox(width: 4),
+                                                              Text((review.rating).toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                                            ],
+                                                          )
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 6),
+                                                      if (review.comment.isNotEmpty)
+                                                        Text(review.comment, style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8), height: 1.4)),
+                                                    ],
+                                                  ),
+                                                )
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ],
                                   );
                                 },
                               ),

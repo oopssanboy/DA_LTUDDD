@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http; // THÊM THƯ VIỆN HTTP
+import 'package:http/http.dart' as http; 
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
@@ -20,15 +19,12 @@ class _UserScreenState extends State<UserScreen> {
   final _bioCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  final String _cloudName = 'dpywl6fkb'; // Ví dụ: 'dxyz123ab'
+  final String _cloudName = 'dpywl6fkb'; 
   final String _uploadPreset = 'ml_default';
   
   final FirestoreService _firestoreService = FirestoreService();
   String _avatarUrl = 'https://via.placeholder.com/150';
   bool _isLoading = false;
-
-  // HƯỚNG DẪN: Truy cập https://api.imgbb.com/ để tạo tài khoản miễn phí và lấy API Key của riêng bạn
-  final String _imgBbApiKey = 'aff26afe769ba47d6c81bd0fdd1fc0c2'; 
 
   @override
   void initState() {
@@ -39,20 +35,18 @@ class _UserScreenState extends State<UserScreen> {
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // SỬ DỤNG UserModel MỚI TẠO
       final profile = await _firestoreService.getUserProfile(user.uid);
       if (profile != null) {
         setState(() {
-          _nameCtrl.text = profile['displayName'] ?? '';
-          _bioCtrl.text = profile['bio'] ?? '';
-          _avatarUrl = profile['avatarUrl'] ?? 'https://via.placeholder.com/150';
+          _nameCtrl.text = profile.displayName; 
+          _bioCtrl.text = profile.bio;
+          _avatarUrl = profile.avatarUrl.isNotEmpty ? profile.avatarUrl : 'https://via.placeholder.com/150';
         });
       }
     }
   }
 
-  // ========================================================
-  // LOGIC UP ẢNH MỚI: SỬ DỤNG HTTP MULTIPART ĐẨY LÊN IMGBB
-  // ========================================================
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 60);
@@ -61,45 +55,27 @@ class _UserScreenState extends State<UserScreen> {
     setState(() => _isLoading = true);
     try {
       if (_cloudName == 'YOUR_CLOUD_NAME') {
-        throw Exception('Vui lòng nhập Cloud Name và Upload Preset của Cloudinary!');
+        throw Exception('Vui lòng nhập Cloud Name!');
       }
 
-      // 1. Tạo request gửi tới API của Cloudinary
       final uri = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/image/upload');
       var request = http.MultipartRequest('POST', uri);
-
-      // 2. Truyền Upload Preset (Bắt buộc phải là dạng Unsigned)
       request.fields['upload_preset'] = _uploadPreset;
-
-      // 3. Đính kèm file ảnh
       request.files.add(await http.MultipartFile.fromPath('file', pickedFile.path));
 
-      // 4. Gửi request
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        // Lấy URL bảo mật (HTTPS) trả về từ Cloudinary
         final Map<String, dynamic> responseData = json.decode(response.body);
-        final String uploadedUrl = responseData['secure_url']; 
-
-        setState(() {
-          _avatarUrl = uploadedUrl;
-        });
-
-        // Lưu URL vào Firestore
+        setState(() => _avatarUrl = responseData['secure_url']);
         await _saveProfile();
       } else {
-        debugPrint("LỖI CLOUDINARY: ${response.body}");
         final Map<String, dynamic> errorData = json.decode(response.body);
-        final String errorMsg = errorData['error']['message'] ?? 'Lỗi không xác định';
-        throw Exception(errorMsg);
+        throw Exception(errorData['error']['message'] ?? 'Lỗi không xác định');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Không thể tải ảnh: $e'),
-        backgroundColor: Colors.redAccent,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không thể tải ảnh: $e'), backgroundColor: Colors.redAccent));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -136,7 +112,7 @@ class _UserScreenState extends State<UserScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 0),
+              const SizedBox(height: 80),
               Center(
                 child: GestureDetector(
                   onTap: _isLoading ? null : _pickAndUploadImage,

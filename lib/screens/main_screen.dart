@@ -24,22 +24,20 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // Cho phép nền tràn xuống dưới thanh điều hướng
+      extendBody: true, 
       body: NeonBackground(
         child: _screens[_currentIndex],
       ),
-      // Bọc SafeArea để nó không bị tràn xuống khu vực phím vuốt hệ thống
       bottomNavigationBar: SafeArea(
         child: Container(
-          // Chỉnh margin để thanh điều hướng lơ lửng cách đáy và 2 bên 16px
           margin: const EdgeInsets.only(left: 16, right: 16, bottom: 0),
           child: GlassContainer(
-            borderRadius: 25, // Bo góc cong tròn hẳn thành hình viên thuốc
-            padding: const EdgeInsets.symmetric(vertical: 1), // Ép chiều cao lại cho gọn gàng
+            borderRadius: 25, 
+            padding: const EdgeInsets.symmetric(vertical: 1), 
             child: BottomNavigationBar(
               currentIndex: _currentIndex,
               onTap: (index) => setState(() => _currentIndex = index),
-              backgroundColor: Colors.transparent, // Để lộ nền kính
+              backgroundColor: Colors.transparent,
               elevation: 0,
               type: BottomNavigationBarType.fixed,
               selectedItemColor: AppTheme.neonPink,

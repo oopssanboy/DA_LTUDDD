@@ -24,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(32),
             child: Column(
               children: [
-                Image.asset('assets/logo.png', height: 100),
+                const Text('MoveTime', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 241, 109, 21), letterSpacing: 2)),
                 const SizedBox(height: 40),
                 GlassContainer(
                   borderRadius: 30,
@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
                             onPressed: () => auth.signIn(_emailCtrl.text, _passCtrl.text),
-                            child: const Text('BẮT ĐẦU NGAY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: const Text('ĐĂNG NHẬP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ),
                     ],

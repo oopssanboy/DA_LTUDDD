@@ -8,7 +8,7 @@ class MediaItem {
   final String releaseDate;
   final List<int> genreIds;
   final double popularity;
-  final String mediaType; // 'movie' hoặc 'tv'
+  final String mediaType; 
 
   MediaItem({
     required this.id,
@@ -24,19 +24,19 @@ class MediaItem {
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json, {required String mediaType}) {
-    return MediaItem(
-      id: json['id'],
-      title: (mediaType == 'movie') ? (json['title'] ?? '') : (json['name'] ?? ''),
-      overview: json['overview'] ?? '',
-      posterPath: json['poster_path'] ?? '',
-      backdropPath: json['backdrop_path'] ?? '',
-      voteAverage: (json['vote_average'] ?? 0).toDouble(),
-      releaseDate: (mediaType == 'movie') ? (json['release_date'] ?? '') : (json['first_air_date'] ?? ''),
-      genreIds: List<int>.from(json['genre_ids'] ?? []),
-      popularity: (json['popularity'] ?? 0).toDouble(),
-      mediaType: mediaType,
-    );
-  }
+  return MediaItem(
+    id: json['id'] ?? 0,
+    title: json['title'] ?? json['name'] ?? '',
+    overview: json['overview'] ?? '',
+    posterPath: json['poster_path'] ?? json['posterPath'] ?? '',
+    backdropPath: json['backdrop_path'] ?? json['backdropPath'] ?? '',
+    voteAverage: (json['vote_average'] ?? json['voteAverage'] ?? 0).toDouble(),
+    releaseDate: json['release_date'] ?? json['releaseDate'] ?? json['first_air_date'] ?? '',
+    genreIds: List<int>.from(json['genre_ids'] ?? json['genreIds'] ?? []),
+    popularity: (json['popularity'] ?? 0).toDouble(),
+    mediaType: json['mediaType'] ?? mediaType,
+  );
+}
 
   String get posterUrl {
     if (posterPath.isEmpty || posterPath == 'N/A') {
